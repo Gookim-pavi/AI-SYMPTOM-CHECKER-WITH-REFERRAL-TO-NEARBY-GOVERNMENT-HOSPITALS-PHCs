@@ -76,6 +76,18 @@ def wait_for_server(port: int, process: subprocess.Popen[bytes]) -> None:
     raise RuntimeError(f"The application did not start on port {port} within 10 seconds.")
 
 
+def ensure_port_available(port: int) -> None:
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.25):
+            raise RuntimeError(
+                f"Port {port} is already in use. Start with --port <number>."
+            )
+    except ConnectionRefusedError:
+        return
+    except OSError:
+        return
+
+
 def main() -> int:
     args = parse_args()
     if not 1 <= args.port <= 65535:
@@ -84,6 +96,8 @@ def main() -> int:
     java = find_executable("java")
     if not args.no_build:
         compile_sources(find_executable("javac"))
+
+    ensure_port_available(args.port)
 
     app_class = BIN_ROOT / "com" / "sanjeevani" / "App.class"
     if not app_class.exists():
