@@ -9,6 +9,8 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 
@@ -16,6 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 SOURCE_ROOT = PROJECT_ROOT / "src"
 BIN_ROOT = PROJECT_ROOT / "bin"
 MAIN_CLASS = "com.sanjeevani.App"
+APP_CLASS = BIN_ROOT / "com" / "sanjeevani" / "App.class"
 
 
 def find_executable(name: str) -> str:
@@ -43,6 +46,13 @@ def compile_sources(javac: str) -> None:
     ]
     print("Compiling Java sources...", flush=True)
     subprocess.run(command, cwd=PROJECT_ROOT, check=True)
+
+
+def needs_compile() -> bool:
+    if not APP_CLASS.exists():
+        return True
+    app_mtime = APP_CLASS.stat().st_mtime
+    return any(source.stat().st_mtime > app_mtime for source in SOURCE_ROOT.rglob("*.java"))
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,16 +86,38 @@ def wait_for_server(port: int, process: subprocess.Popen[bytes]) -> None:
     raise RuntimeError(f"The application did not start on port {port} within 10 seconds.")
 
 
-def ensure_port_available(port: int) -> None:
+def is_port_available(port: int) -> bool:
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=0.25):
-            raise RuntimeError(
-                f"Port {port} is already in use. Start with --port <number>."
-            )
-    except ConnectionRefusedError:
-        return
+        probe.bind(("127.0.0.1", port))
+        return True
     except OSError:
-        return
+        return False
+    finally:
+        probe.close()
+
+
+def select_port(requested_port: int) -> int:
+    for port in range(requested_port, min(requested_port + 10, 65536)):
+        if is_port_available(port):
+            if port != requested_port:
+                print(
+                    f"Port {requested_port} is busy; using available port {port}.",
+                    flush=True,
+                )
+            return port
+    raise RuntimeError(f"No available port found between {requested_port} and {requested_port + 9}.")
+
+
+def existing_app_url(port: int) -> str | None:
+    url = f"http://127.0.0.1:{port}/api/health"
+    try:
+        with urllib.request.urlopen(url, timeout=0.5) as response:
+            if response.status == 200 and b"SSS Medical Assist" in response.read():
+                return f"http://localhost:{port}"
+    except (OSError, urllib.error.URLError):
+        return None
+    return None
 
 
 def main() -> int:
@@ -93,30 +125,37 @@ def main() -> int:
     if not 1 <= args.port <= 65535:
         raise ValueError("--port must be between 1 and 65535.")
 
+    running_url = existing_app_url(args.port)
+    if running_url:
+        print("SSS Medical Assist is already running. Click this link to open it:", flush=True)
+        print(running_url, flush=True)
+        return 0
+
     java = find_executable("java")
-    if not args.no_build:
+    if not args.no_build and needs_compile():
         compile_sources(find_executable("javac"))
+    elif not args.no_build:
+        print("Using up-to-date compiled classes.", flush=True)
 
-    ensure_port_available(args.port)
+    port = select_port(args.port)
 
-    app_class = BIN_ROOT / "com" / "sanjeevani" / "App.class"
-    if not app_class.exists():
+    if not APP_CLASS.exists():
         raise RuntimeError(
-            f"{app_class} does not exist. Run without --no-build first."
+            f"{APP_CLASS} does not exist. Run without --no-build first."
         )
 
     process = subprocess.Popen(
-        [java, "-cp", str(BIN_ROOT), MAIN_CLASS, str(args.port)],
+        [java, "-cp", str(BIN_ROOT), MAIN_CLASS, str(port)],
         cwd=PROJECT_ROOT,
     )
     try:
-        wait_for_server(args.port, process)
+        wait_for_server(port, process)
     except RuntimeError:
         if process.poll() is None:
             process.terminate()
         raise
 
-    app_url = f"http://localhost:{args.port}"
+    app_url = f"http://localhost:{port}"
     print("\nSSS Medical Assist is running. Click this link to open it:", flush=True)
     print(app_url, flush=True)
 
