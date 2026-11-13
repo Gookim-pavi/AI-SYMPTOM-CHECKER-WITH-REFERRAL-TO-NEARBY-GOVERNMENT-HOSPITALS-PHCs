@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import shutil
 import signal
+import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -61,6 +63,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def wait_for_server(port: int, process: subprocess.Popen[bytes]) -> None:
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError("The Java application stopped before the server started.")
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.25):
+                return
+        except OSError:
+            time.sleep(0.1)
+    raise RuntimeError(f"The application did not start on port {port} within 10 seconds.")
+
+
 def main() -> int:
     args = parse_args()
     if not 1 <= args.port <= 65535:
@@ -80,6 +95,16 @@ def main() -> int:
         [java, "-cp", str(BIN_ROOT), MAIN_CLASS, str(args.port)],
         cwd=PROJECT_ROOT,
     )
+    try:
+        wait_for_server(args.port, process)
+    except RuntimeError:
+        if process.poll() is None:
+            process.terminate()
+        raise
+
+    app_url = f"http://localhost:{args.port}"
+    print("\nSSS Medical Assist is running. Click this link to open it:", flush=True)
+    print(app_url, flush=True)
 
     def stop_process(signum: int, _frame: object) -> None:
         del signum
