@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSS Medical Assist - Smart Symptom Checker & Government Hospital / PHC Referral Network</title>
+    <meta name="description" content="AI-Powered Healthcare Symptom Triage, Risk Categorization, and Geo-Referral Network to Government PHCs, CHCs, and District Hospitals.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Leaflet CSS for GIS Mapping -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Application Stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="dark-theme">
+    <!-- Background Canvas Animation -->
+    <canvas id="bg-canvas"></canvas>
+    <div class="heartbeat-line"></div>
+
+    <main id="login-screen" class="login-screen">
+        <section class="login-card">
+            <div class="login-brand-icon"><i class="fa-solid fa-heart-pulse"></i></div>
+            <span class="login-eyebrow">SSS MEDICAL ASSIST</span>
+            <h1>Welcome back</h1>
+            <p class="login-intro">Sign in to open the healthcare triage and referral demo.</p>
+
+            <form id="login-form" class="login-form">
+                <label for="login-email">Email address</label>
+                <input id="login-email" name="email" type="email" autocomplete="username" placeholder="you@example.com" required>
+
+                <label for="login-password">Password</label>
+                <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Enter any demo password" required>
+
+                <button class="login-submit" type="submit">Continue to demo <i class="fa-solid fa-arrow-right"></i></button>
+                <p class="login-demo-note"><i class="fa-solid fa-circle-info"></i> Demo access only. Credentials are not checked or stored. This screen is not secure authentication; do not enter real patient information.</p>
+            </form>
+        </section>
+    </main>
+
+    <!-- Main Container -->
+    <div class="app-wrapper" id="app-wrapper" hidden>
+        
+        <!-- Emergency SOS Top Ribbon -->
+        <div class="emergency-ribbon">
+            <div class="ribbon-content">
+                <span class="pulse-icon"><i class="fa-solid fa-truck-medical"></i></span>
+                <span class="ribbon-text"><strong>24x7 Government Emergency Ambulance Hotline: 108 / 102</strong> | Janani Shishu Suraksha</span>
+            </div>
+            <div class="ribbon-actions">
+                <button id="sos-trigger-btn" class="btn-sos-pulse" title="Trigger Fullscreen Emergency SOS Mode">
+                    <i class="fa-solid fa-triangle-exclamation"></i> EMERGENCY SOS
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Header -->
+        <header class="app-header glass-card">
+            <div class="header-brand">
+                <div class="brand-logo-container">
+                    <div class="logo-glow"></div>
+                    <i class="fa-solid fa-heart-pulse logo-icon"></i>
+                </div>
+                <div class="brand-info">
+                    <div class="brand-title-wrap">
+                        <h1 class="brand-title">SSS MEDICAL ASSIST <span class="ai-badge">AI 2.0</span></h1>
+                        <span class="nhm-badge"><i class="fa-solid fa-shield-halved"></i> National Health Network</span>
+                    </div>
+                    <p class="brand-subtitle">AI Symptom Triage & Geo-Referral to Government Hospitals, CHCs & PHCs</p>
+                </div>
+            </div>
+
+            <div class="header-controls">
+                <!-- Language Selector -->
+                <div class="lang-picker-wrap">
+                    <i class="fa-solid fa-language"></i>
+                    <select id="language-select" class="custom-select" aria-label="Select Language">
+                        <option value="en">English</option>
+                        <option value="hi">हिंदी (Hindi)</option>
+                        <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                        <option value="ta">தமிழ் (Tamil)</option>
+                        <option value="te">తెలుగు (Telugu)</option>
+                        <option value="bn">বাংলা (Bengali)</option>
+                        <option value="mr">मराठी (Marathi)</option>
+                    </select>
+                </div>
+
+                <!-- Voice Audio Guidance Toggle -->
+                <button id="voice-guide-btn" class="btn-icon" title="Toggle AI Voice Audio Guidance" aria-label="Toggle Voice Guidance">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+
+                <!-- Theme Toggle -->
+                <button id="theme-toggle-btn" class="btn-icon" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+
+                <!-- Server Status Indicator -->
+                <div class="server-status-pill" id="server-status-pill" title="Java Backend Engine Status">
+                    <span class="status-dot online"></span>
+                    <span class="status-label">Java 25 Core Online</span>
+                </div>
+                <button id="logout-btn" class="btn-secondary btn-sm" type="button">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign out
+                </button>
+            </div>
+        </header>
+
+        <section class="welcome-hero" aria-label="Welcome">
+            <div class="hero-copy">
+                <span class="hero-eyebrow"><i class="fa-solid fa-sparkles"></i> YOUR CARE JOURNEY STARTS HERE</span>
+                <h2>Clear next steps.<br><span>Better-informed care.</span></h2>
+                <p>Share what you’re feeling, review a preliminary triage, and explore nearby care options—all in one place.</p>
+            </div>
+            <div class="hero-journey" aria-label="Three steps: describe symptoms, review guidance, find care">
+                <div class="journey-step"><span>01</span><i class="fa-solid fa-comment-medical"></i><strong>Describe</strong></div>
+                <i class="fa-solid fa-arrow-right journey-connector" aria-hidden="true"></i>
+                <div class="journey-step"><span>02</span><i class="fa-solid fa-chart-pie"></i><strong>Review</strong></div>
+                <i class="fa-solid fa-arrow-right journey-connector" aria-hidden="true"></i>
+                <div class="journey-step"><span>03</span><i class="fa-solid fa-hospital"></i><strong>Find care</strong></div>
+            </div>
+            <div class="hero-disclaimer"><i class="fa-solid fa-shield-heart"></i><span>Guidance only<br><strong>Not a diagnosis</strong></span></div>
+        </section>
+
+        <!-- Navigation Tabs -->
+        <nav class="app-nav">
+            <button class="nav-tab active" data-tab="tab-symptom-checker">
+                <i class="fa-solid fa-stethoscope"></i>
+                <span class="tab-text">1. AI Symptom Checker</span>
+            </button>
+            <button class="nav-tab" data-tab="tab-triage-results">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span class="tab-text">2. Clinical Triage & Urgency</span>
+                <span class="nav-badge" id="triage-status-badge">Pending</span>
+            </button>
+            <button class="nav-tab" data-tab="tab-hospital-locator">
+                <i class="fa-solid fa-hospital"></i>
+                <span class="tab-text">3. Nearby Govt PHCs & Hospitals</span>
+            </button>
+            <button class="nav-tab" data-tab="tab-referral-passes">
+                <i class="fa-solid fa-file-medical"></i>
+                <span class="tab-text">4. Official Referral Pass</span>
+                <span class="counter-bubble" id="active-slips-count">0</span>
+            </button>
+            <button class="nav-tab" data-tab="tab-doctor-desk">
+                <i class="fa-solid fa-user-doctor"></i>
+                <span class="tab-text">5. PHC Tele-Triage Desk</span>
+            </button>
+        </nav>
+
+        <!-- Main Workspace -->
+        <main class="app-main">
+
+            <!-- TAB 1: AI SYMPTOM CHECKER -->
+            <section id="tab-symptom-checker" class="tab-pane active">
+                <div class="two-column-grid">
+                    
+                    <!-- Left Column: Patient Profile & Multi-Modal Input -->
+                    <div class="panel-column">
+                        
+                        <!-- Patient Demographic Card -->
+                        <div class="glass-card section-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-id-card-clip"></i> Patient Demographics & Location</h3>
+                                <button id="btn-autolocate" class="btn-secondary btn-sm" title="Detect GPS Location">
+                                    <i class="fa-solid fa-location-crosshairs"></i> Auto-Detect GPS
+                                </button>
+                            </div>
+                            
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="patient-name">Patient Name / Identifier</label>
+                                    <input type="text" id="patient-name" class="form-control" placeholder="Enter patient name or identifier">
+                                </div>
+                                <div class="form-group">
+                                    <label for="patient-age">Age (Years)</label>
+                                    <input type="number" id="patient-age" class="form-control" min="1" max="120" placeholder="Enter age">
+                                </div>
+                                <div class="form-group">
+                                    <label for="patient-gender">Biological Sex</label>
+                                    <select id="patient-gender" class="form-control">
+                                        <option value="" selected disabled>Select</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="pregnancy-group" style="display: none;">
+                                    <label for="is-pregnant">Pregnancy Status</label>
+                                    <select id="is-pregnant" class="form-control">
+                                        <option value="no">Not Pregnant</option>
+                                        <option value="trimester1">Pregnant (1st Trimester)</option>
+                                        <option value="trimester2">Pregnant (2nd Trimester)</option>
+                                        <option value="trimester3">Pregnant (3rd Trimester)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Location Info -->
+                            <div class="location-bar">
+                                <i class="fa-solid fa-map-pin location-pin-icon"></i>
+                                <div class="location-details">
+                                    <span class="location-title" id="current-location-text">Bengaluru Urban, Karnataka (560001)</span>
+                                    <span class="location-coords" id="coords-text">Lat: 12.9716, Lng: 77.5946</span>
+                                </div>
+                                <button id="change-location-btn" class="btn-text-only">Change District</button>
+                            </div>
+
+                            <!-- Comorbidities Chips -->
+                            <div class="comorbidities-wrapper">
+                                <label class="field-label"><i class="fa-solid fa-notes-medical"></i> Existing Health Conditions / History:</label>
+                                <div class="chips-row">
+                                    <button class="comorb-chip" data-val="Diabetes"><i class="fa-solid fa-plus"></i> Diabetes</button>
+                                    <button class="comorb-chip" data-val="Hypertension"><i class="fa-solid fa-plus"></i> Hypertension (High BP)</button>
+                                    <button class="comorb-chip" data-val="Asthma/COPD"><i class="fa-solid fa-plus"></i> Asthma / COPD</button>
+                                    <button class="comorb-chip" data-val="Cardiac History"><i class="fa-solid fa-plus"></i> Heart Disease History</button>
+                                    <button class="comorb-chip" data-val="Renal Disease"><i class="fa-solid fa-plus"></i> Kidney Disease</button>
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Vitals Input -->
+                            <div class="vitals-accordion">
+                                <button class="accordion-toggle" id="vitals-toggle-btn">
+                                    <span><i class="fa-solid fa-gauge-high"></i> Optional: Record Patient Vital Signs (NEWS2 Assessment)</span>
+                                    <i class="fa-solid fa-chevron-down accordion-arrow"></i>
+                                </button>
+                                <div class="accordion-body" id="vitals-body">
+                                    <div class="vitals-grid">
+                                        <div class="vital-card">
+                                            <span class="vital-label"><i class="fa-solid fa-temperature-half"></i> Body Temp (°F)</span>
+                                            <input type="number" step="0.1" id="vital-temp" class="form-control vital-input" placeholder="e.g. 98.6">
+                                        </div>
+                                        <div class="vital-card">
+                                            <span class="vital-label"><i class="fa-solid fa-lungs"></i> SpO2 Blood Oxygen (%)</span>
+                                            <input type="number" id="vital-spo2" class="form-control vital-input" placeholder="e.g. 98">
+                                        </div>
+                                        <div class="vital-card">
+                                            <span class="vital-label"><i class="fa-solid fa-heart-pulse"></i> Pulse Rate (BPM)</span>
+                                            <input type="number" id="vital-pulse" class="form-control vital-input" placeholder="e.g. 72">
+                                        </div>
+                                        <div class="vital-card">
+                                            <span class="vital-label"><i class="fa-solid fa-stethoscope"></i> Blood Pressure (Systolic)</span>
+                                            <input type="number" id="vital-sbp" class="form-control vital-input" placeholder="e.g. 120">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Natural Language AI & Voice Input Card -->
+                        <div class="glass-card section-card highlight-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Describe Symptoms in Natural Language or Voice</h3>
+                                <span class="ai-pill">AI NLP Parser</span>
+                            </div>
+                            
+                            <p class="card-desc">Type your health concerns naturally in English or Hindi, or click the mic button to speak.</p>
+
+                            <div class="nl-input-wrapper">
+                                <textarea id="nl-symptom-text" class="nl-textarea" rows="3" placeholder="e.g. I have had a high fever and severe throbbing headache with stiff neck for 2 days..."></textarea>
+                                
+                                <div class="nl-action-bar">
+                                    <button id="voice-input-btn" class="btn-voice" title="Speak your symptoms">
+                                        <i class="fa-solid fa-microphone"></i>
+                                        <span id="voice-btn-text">Voice Input</span>
+                                        <div class="audio-waves" id="audio-waves"><span></span><span></span><span></span><span></span></div>
+                                    </button>
+                                    
+                                    <button id="btn-parse-nlp" class="btn-primary">
+                                        <i class="fa-solid fa-brain"></i> AI Extract & Check
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Sample Narrative Quick Buttons -->
+                            <div class="quick-prompts-wrap">
+                                <span class="prompt-hint">Try Clinical Examples:</span>
+                                <div class="prompt-chips">
+                                    <button class="prompt-chip" data-text="Crushing chest pain radiating to left arm and sweating with breathlessness">🚨 Cardiac Emergency</button>
+                                    <button class="prompt-chip" data-text="High grade fever with chills, body ache and severe headache for 3 days">🌡️ Febrile Flu / Dengue</button>
+                                    <button class="prompt-chip" data-text="Sudden facial drooping on one side and slurred speech with arm weakness">🧠 Stroke FAST Sign</button>
+                                    <button class="prompt-chip" data-text="Severe watery diarrhea and persistent vomiting with mild stomach cramps">💧 Gastroenteritis</button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column: Interactive Body Map & Symptom Catalog -->
+                    <div class="panel-column">
+                        <div class="glass-card section-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-child-reaching"></i> Interactive Anatomical Body Map</h3>
+                                <div class="view-switch-btns">
+                                    <button class="btn-view active" id="btn-body-front">Front View</button>
+                                    <button class="btn-view" id="btn-body-back">Back View</button>
+                                </div>
+                            </div>
+
+                            <!-- Interactive Anatomical Body Diagram -->
+                            <div class="body-map-container">
+                                <div class="body-svg-wrapper">
+                                    <svg viewBox="0 0 300 520" class="human-body-svg" id="human-body-svg">
+                                        <defs>
+                                            <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stop-color="rgba(34, 211, 238, 0.25)" />
+                                                <stop offset="100%" stop-color="rgba(59, 130, 246, 0.15)" />
+                                            </linearGradient>
+                                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                                <feGaussianBlur stdDeviation="4" result="blur" />
+                                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                            </filter>
+                                        </defs>
+
+                                        <!-- Body Silhouette Base -->
+                                        <!-- Head & Neck -->
+                                        <path class="body-part-interactive" id="part-head" data-system="Head" d="M 130 35 C 130 15, 170 15, 170 35 C 170 58, 162 70, 150 72 C 138 70, 130 58, 130 35 Z" />
+                                        <path class="body-part-interactive" id="part-ent" data-system="ENT" d="M 138 52 C 144 50, 156 50, 162 52 C 158 68, 142 68, 138 52 Z" />
+                                        <rect class="body-part-interactive" id="part-neck" data-system="Systemic" x="142" y="72" width="16" height="18" rx="4" />
+
+                                        <!-- Chest & Heart -->
+                                        <path class="body-part-interactive" id="part-chest" data-system="Chest" d="M 115 90 C 135 85, 165 85, 185 90 L 180 160 C 160 165, 140 165, 120 160 Z" />
+                                        <circle class="hotspot-pulse" id="hotspot-heart" cx="160" cy="120" r="10" />
+
+                                        <!-- Respiratory / Lungs -->
+                                        <path class="body-part-interactive" id="part-respiratory" data-system="Respiratory" d="M 125 98 C 135 96, 145 102, 145 140 C 135 142, 125 135, 125 98 Z M 175 98 C 165 96, 155 102, 155 140 C 165 142, 175 135, 175 98 Z" />
+
+                                        <!-- Abdomen & Stomach -->
+                                        <path class="body-part-interactive" id="part-abdomen" data-system="Abdomen" d="M 120 162 C 140 165, 160 165, 180 162 L 175 230 C 160 235, 140 235, 125 230 Z" />
+
+                                        <!-- Pelvis & Urogenital -->
+                                        <path class="body-part-interactive" id="part-pelvis" data-system="Pelvis" d="M 125 232 C 140 235, 160 235, 175 232 L 165 275 C 155 280, 145 280, 135 275 Z" />
+
+                                        <!-- Arms & Hands -->
+                                        <path class="body-part-interactive" id="part-left-arm" data-system="Musculoskeletal" d="M 113 94 C 98 120, 85 170, 78 220 L 68 280 L 78 285 L 90 220 C 96 175, 108 130, 118 100 Z" />
+                                        <path class="body-part-interactive" id="part-right-arm" data-system="Musculoskeletal" d="M 187 94 C 202 120, 215 170, 222 220 L 232 280 L 222 285 L 210 220 C 204 175, 192 130, 182 100 Z" />
+
+                                        <!-- Legs & Feet -->
+                                        <path class="body-part-interactive" id="part-left-leg" data-system="Musculoskeletal" d="M 132 278 C 130 340, 125 410, 120 480 L 105 490 L 128 495 L 142 410 C 146 340, 148 280, 148 278 Z" />
+                                        <path class="body-part-interactive" id="part-right-leg" data-system="Musculoskeletal" d="M 168 278 C 170 340, 175 410, 180 480 L 195 490 L 172 495 L 158 410 C 154 340, 152 280, 152 278 Z" />
+                                    </svg>
+                                    <div class="body-map-hint">
+                                        <i class="fa-solid fa-hand-pointer"></i> Click any anatomical region to filter symptoms
+                                    </div>
+                                </div>
+
+                                <!-- System Quick Filter Tabs -->
+                                <div class="system-pills-list">
+                                    <button class="sys-pill active" data-filter="ALL">All Systems</button>
+                                    <button class="sys-pill" data-filter="Head">Head & Brain</button>
+                                    <button class="sys-pill" data-filter="ENT">Eyes & ENT</button>
+                                    <button class="sys-pill" data-filter="Chest">Chest & Heart</button>
+                                    <button class="sys-pill" data-filter="Respiratory">Respiratory</button>
+                                    <button class="sys-pill" data-filter="Abdomen">Abdomen & Gut</button>
+                                    <button class="sys-pill" data-filter="Pelvis">Pelvis & Urinary</button>
+                                    <button class="sys-pill" data-filter="Musculoskeletal">Joints & Bones</button>
+                                    <button class="sys-pill" data-filter="Skin">Skin & Allergy</button>
+                                    <button class="sys-pill" data-filter="Systemic">Systemic / Fever</button>
+                                </div>
+                            </div>
+
+                            <!-- Symptom Search & Tag Catalog -->
+                            <div class="symptom-search-bar">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" id="symptom-filter-input" placeholder="Search symptom (e.g. fever, headache, chest pain, nausea)...">
+                            </div>
+
+                            <div class="symptoms-tag-cloud" id="symptoms-tag-cloud">
+                                <!-- Populated dynamically by JS -->
+                                <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading Clinical Symptom Ontology...</div>
+                            </div>
+
+                            <!-- Selected Symptoms Tray -->
+                            <div class="selected-symptoms-tray">
+                                <div class="tray-header">
+                                    <h4><i class="fa-solid fa-clipboard-check"></i> Selected Symptoms (<span id="selected-count">0</span>):</h4>
+                                    <button id="btn-clear-symptoms" class="btn-text-danger btn-sm">Clear All</button>
+                                </div>
+                                <div class="selected-items-list" id="selected-items-list">
+                                    <div class="empty-state-text">No symptoms selected yet. Click on tags or use the body map above.</div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Triage Assessment Button -->
+                            <div class="triage-action-footer">
+                                <button id="btn-run-triage" class="btn-cta btn-lg" disabled>
+                                    <i class="fa-solid fa-stethoscope"></i> RUN AI TRIAGE & GET REFERRAL
+                                    <span class="btn-glow-pulse"></span>
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- TAB 2: CLINICAL TRIAGE & URGENCY RESULTS -->
+            <section id="tab-triage-results" class="tab-pane">
+                <div class="triage-result-container" id="triage-result-view">
+                    
+                    <!-- If no triage run yet -->
+                    <div class="no-triage-placeholder" id="no-triage-placeholder">
+                        <div class="placeholder-icon"><i class="fa-solid fa-notes-medical"></i></div>
+                        <h2>No Active Triage Evaluation</h2>
+                        <p>Please select your symptoms in Tab 1 and click <strong>"Run AI Triage"</strong> to generate your urgency assessment and government referral.</p>
+                        <button class="btn-primary" onclick="document.querySelector('[data-tab=tab-symptom-checker]').click();">
+                            <i class="fa-solid fa-arrow-left"></i> Go to Symptom Checker
+                        </button>
+                    </div>
+
+                    <!-- Populated Triage Content -->
+                    <div class="triage-dynamic-content" id="triage-dynamic-content" style="display: none;">
+                        
+                        <!-- Top Urgency Banner -->
+                        <div class="urgency-banner" id="urgency-banner">
+                            <div class="urgency-header-flex">
+                                <div class="urgency-icon-wrap" id="urgency-icon-wrap">
+                                    <i class="fa-solid fa-triangle-exclamation" id="urgency-main-icon"></i>
+                                </div>
+                                <div class="urgency-text-wrap">
+                                    <div class="urgency-level-tag" id="urgency-level-tag">EMERGENCY (RED TIER)</div>
+                                    <h2 class="urgency-headline" id="urgency-headline">Immediate Emergency Medical Care Required</h2>
+                                    <p class="urgency-recommendation" id="urgency-recommendation">Seek immediate emergency attention at the nearest 24/7 District Hospital.</p>
+                                </div>
+                                
+                                <!-- Triage Urgency Gauge -->
+                                <div class="urgency-gauge-card">
+                                    <div class="gauge-dial">
+                                        <div class="gauge-fill" id="gauge-fill"></div>
+                                        <div class="gauge-needle" id="gauge-needle"></div>
+                                        <div class="gauge-center">
+                                            <span class="gauge-score-num" id="gauge-score-num">95</span>
+                                            <span class="gauge-score-sub">URGENCY</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Emergency Alert Ribbon for RED Tier -->
+                            <div class="emergency-action-strip" id="emergency-action-strip" style="display: none;">
+                                <div class="strip-left">
+                                    <i class="fa-solid fa-phone-volume strip-icon"></i>
+                                    <span><strong>CRITICAL ALERT:</strong> Life-threatening indicators detected. Ambulance dispatch recommended.</span>
+                                </div>
+                                <div class="strip-right">
+                                    <a href="tel:108" class="btn-emergency-call"><i class="fa-solid fa-phone"></i> CALL 108 AMBULANCE</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3-Column Clinical Dashboard -->
+                        <div class="triage-grid-layout">
+                            
+                            <!-- Left Card: Red Flags & Clinical Impression -->
+                            <div class="glass-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-shield-virus"></i> Clinical Triage Analysis</h3>
+                                </div>
+                                
+                                <div class="clinical-summary-box">
+                                    <span class="summary-label">AI Clinical Impression:</span>
+                                    <p id="clinical-summary-text">Preliminary analysis indicates severe acute presentation...</p>
+                                </div>
+
+                                <!-- Red Flags List -->
+                                <div class="redflags-box" id="redflags-box">
+                                    <div class="redflags-header">
+                                        <i class="fa-solid fa-flag"></i> <strong>Critical Red Flags Detected:</strong>
+                                    </div>
+                                    <ul class="redflags-list" id="redflags-list">
+                                        <!-- Populated by JS -->
+                                    </ul>
+                                </div>
+
+                                <!-- Vital Signs Warning (if any) -->
+                                <div class="vitals-status-box" id="vitals-status-box">
+                                    <span class="summary-label">Physiological Vital Risk (NEWS2):</span>
+                                    <div class="vital-score-badge" id="vital-score-badge">NEWS2 Score: 4 (Moderate)</div>
+                                </div>
+                            </div>
+
+                            <!-- Middle Card: Differential Possibilities -->
+                            <div class="glass-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-brain"></i> Differential Diagnoses (ICD-11)</h3>
+                                    <span class="tag-sub">Bayesian Probability</span>
+                                </div>
+
+                                <div class="differential-list" id="differential-list">
+                                    <!-- Populated by JS -->
+                                </div>
+
+                                <!-- Adaptive Follow-up Questions -->
+                                <div class="followup-questions-box" id="followup-questions-box">
+                                    <h4><i class="fa-solid fa-comments-question-check"></i> Clinical Follow-up Clarifications:</h4>
+                                    <div class="questions-list" id="questions-list">
+                                        <!-- Populated by JS -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Card: Recommended Facility & Next Steps -->
+                            <div class="glass-card highlight-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-route"></i> Recommended Referral Pathway</h3>
+                                </div>
+
+                                <div class="recommended-tier-card" id="recommended-tier-card">
+                                    <div class="tier-icon"><i class="fa-solid fa-hospital-user"></i></div>
+                                    <div class="tier-details">
+                                        <span class="tier-label">Optimal Care Facility Tier:</span>
+                                        <h3 class="tier-name" id="tier-name">District Hospital / 24x7 FRU</h3>
+                                        <span class="tier-desc" id="tier-desc">Equipped with 24x7 Emergency Casualty, ICU, and Specialist Doctors.</span>
+                                    </div>
+                                </div>
+
+                                <!-- Immediate Do's & Don'ts -->
+                                <div class="dos-donts-grid">
+                                    <div class="dos-box">
+                                        <h5><i class="fa-solid fa-circle-check"></i> Immediate First Aid / Do's:</h5>
+                                        <ul id="dos-list"></ul>
+                                    </div>
+                                    <div class="donts-box">
+                                        <h5><i class="fa-solid fa-circle-xmark"></i> What NOT To Do:</h5>
+                                        <ul id="donts-list"></ul>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="referral-cta-group">
+                                    <button id="btn-generate-referral" class="btn-primary btn-block btn-lg">
+                                        <i class="fa-solid fa-file-signature"></i> GENERATE OFFICIAL REFERRAL SLIP
+                                    </button>
+                                    <button id="btn-view-map-referral" class="btn-secondary btn-block">
+                                        <i class="fa-solid fa-map-location-dot"></i> View Nearby Govt Facilities on Map
+                                    </button>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- TAB 3: NEARBY GOVT HOSPITALS & PHCS LOCATOR -->
+            <section id="tab-hospital-locator" class="tab-pane">
+                <div class="locator-layout">
+                    
+                    <!-- Map Controls & Filter Header -->
+                    <div class="glass-card locator-filter-card">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label><i class="fa-solid fa-filter"></i> Facility Category:</label>
+                                <div class="filter-pills" id="facility-filter-pills">
+                                    <button class="filt-pill active" data-type="ALL">All Categories</button>
+                                    <button class="filt-pill" data-type="PHC">Primary Health Centres (PHC)</button>
+                                    <button class="filt-pill" data-type="CHC">Community Health Centres (CHC)</button>
+                                    <button class="filt-pill" data-type="DISTRICT_HOSPITAL">District Hospitals</button>
+                                    <button class="filt-pill" data-type="TERTIARY_AIIMS">Apex / Medical Colleges</button>
+                                </div>
+                            </div>
+
+                            <div class="filter-group right">
+                                <label class="checkbox-toggle">
+                                    <input type="checkbox" id="chk-emergency-only">
+                                    <span class="toggle-slider"></span>
+                                    <span class="toggle-text"><i class="fa-solid fa-truck-medical"></i> 24x7 Emergency Services Only</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Split View: Interactive Map + Facilities List -->
+                    <div class="map-split-container">
+                        
+                        <!-- Map Canvas -->
+                        <div class="map-view-card glass-card">
+                            <div class="map-header">
+                                <span><i class="fa-solid fa-map"></i> Live Geo-Referral GIS Map</span>
+                                <span class="map-stats" id="map-stats-text">Showing 8 Facilities near Bengaluru Urban</span>
+                            </div>
+                            <div id="leaflet-map" class="leaflet-map-element"></div>
+                        </div>
+
+                        <!-- Facilities Cards List -->
+                        <div class="facilities-scroll-list" id="facilities-scroll-list">
+                            <!-- Populated dynamically by JS -->
+                            <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Locating Nearby Government Health Facilities...</div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- TAB 4: OFFICIAL REFERRAL PASSES -->
+            <section id="tab-referral-passes" class="tab-pane">
+                <div class="referral-vault-container">
+                    
+                    <div class="vault-header glass-card">
+                        <div class="vault-title-wrap">
+                            <i class="fa-solid fa-stamp vault-icon"></i>
+                            <div>
+                                <h2>Official Government Health Referral Passes</h2>
+                                <p>Digital National Health Mission Referral Slips with Priority OPD Token & Cryptographic QR Verification.</p>
+                            </div>
+                        </div>
+                        <button id="btn-print-active-slip" class="btn-primary" disabled>
+                            <i class="fa-solid fa-print"></i> Print Active Referral Pass
+                        </button>
+                    </div>
+
+                    <div class="referral-pass-wrapper" id="referral-pass-display">
+                        <!-- Referral pass rendered here or empty state -->
+                        <div class="empty-slip-state" id="empty-slip-state">
+                            <i class="fa-solid fa-file-circle-question"></i>
+                            <h3>No Active Referral Slip Issued</h3>
+                            <p>Complete a symptom evaluation in Tab 1 and click <strong>"Generate Official Referral Slip"</strong> to create an authentic Government Referral Certificate.</p>
+                        </div>
+
+                        <!-- Certificate Printable Card -->
+                        <div class="official-certificate" id="printable-certificate" style="display: none;">
+                            <div class="cert-watermark">GOVERNMENT OF INDIA • NATIONAL HEALTH MISSION</div>
+                            
+                            <!-- Certificate Header -->
+                            <div class="cert-header">
+                                <div class="emblem-box">
+                                    <i class="fa-solid fa-building-columns govt-emblem-icon"></i>
+                                    <div class="emblem-sub">NATIONAL HEALTH AUTHORITY</div>
+                                </div>
+                                <div class="cert-title-center">
+                                    <h2>GOVERNMENT HEALTH SERVICE REFERRAL PASS</h2>
+                                    <h3>Ayushman Bharat Digital Mission (ABDM) Integrated Tele-Triage</h3>
+                                    <div class="cert-ref-id" id="cert-slip-id">REF-2026-KA-1001</div>
+                                </div>
+                                <div class="qr-code-box" id="cert-qr-container">
+                                    <!-- QR Code SVG generated dynamically -->
+                                    <canvas id="qr-canvas" width="100" height="100"></canvas>
+                                    <span class="qr-label">Scan to Verify</span>
+                                </div>
+                            </div>
+
+                            <!-- Priority Queue Ribbon -->
+                            <div class="cert-priority-ribbon" id="cert-priority-ribbon">
+                                <span class="ribbon-token-label">OPD TOKEN:</span>
+                                <span class="ribbon-token-val" id="cert-token-val">EMERG-T742</span>
+                                <span class="ribbon-triage-tier" id="cert-triage-tier">TRIAGE: STAT EMERGENCY</span>
+                            </div>
+
+                            <!-- Patient & Referral Details Grid -->
+                            <div class="cert-details-grid">
+                                <div class="cert-col">
+                                    <div class="detail-item"><span class="label">Patient Name:</span> <strong id="cert-pat-name">—</strong></div>
+                                    <div class="detail-item"><span class="label">Age / Sex:</span> <strong id="cert-pat-age-sex">38 Yrs / Male</strong></div>
+                                    <div class="detail-item"><span class="label">ABHA Health ID:</span> <strong id="cert-abha-id">ABHA-8392-4912-7719</strong></div>
+                                    <div class="detail-item"><span class="label">Issued Timestamp:</span> <strong id="cert-issued-at">18-Aug-2026 23:45</strong></div>
+                                </div>
+                                <div class="cert-col">
+                                    <div class="detail-item"><span class="label">Referred Facility:</span> <strong id="cert-fac-name">Bowring & Lady Curzon District Hospital</strong></div>
+                                    <div class="detail-item"><span class="label">Assigned Dept:</span> <strong id="cert-dept-name">24x7 Emergency Casualty</strong></div>
+                                    <div class="detail-item"><span class="label">Facility Address:</span> <span id="cert-fac-addr">Lady Curzon Road, Shivaji Nagar, Bengaluru</span></div>
+                                    <div class="detail-item"><span class="label">Helpline / Desk:</span> <strong id="cert-fac-phone">108 / 080-25591325</strong></div>
+                                </div>
+                            </div>
+
+                            <!-- Clinical Triage Findings -->
+                            <div class="cert-clinical-section">
+                                <h4><i class="fa-solid fa-notes-medical"></i> CLINICAL TRIAGE & PRELIMINARY IMPRESSION:</h4>
+                                <p class="cert-summary-text" id="cert-clinical-impression">Patient presented with acute crushing chest pain radiating to left arm with breathlessness. High suspicion for Acute Myocardial Infarction.</p>
+                                
+                                <div class="cert-symptoms-row">
+                                    <span class="label">Reported Symptoms:</span>
+                                    <div class="cert-tags" id="cert-reported-symptoms">
+                                        <!-- Populated by JS -->
+                                    </div>
+                                </div>
+
+                                <div class="cert-redflags-row" id="cert-redflags-row">
+                                    <span class="label">Emergency Red Flags:</span>
+                                    <span class="redflag-text" id="cert-redflag-text">Crushing chest pain, severe breathlessness</span>
+                                </div>
+                            </div>
+
+                            <!-- Instructions for Hospital OPD Desk & Patient -->
+                            <div class="cert-instructions-section">
+                                <h5>INSTRUCTIONS FOR PHC / HOSPITAL REGISTRATION DESK:</h5>
+                                <ol>
+                                    <li>Present this digital or printed pass at the Government Health Facility registration/casualty desk for priority queue entry.</li>
+                                    <li>Patients with <strong>RED-STAT</strong> or <strong>AMBER-URGENT</strong> tokens are entitled to expedited triage under the National Emergency Care Protocol.</li>
+                                    <li>Jan Aushadhi / Free Essential Medicines and basic diagnostics are covered under Government Free Care schemes upon presentation of this voucher.</li>
+                                </ol>
+                            </div>
+
+                            <!-- Footer Verification Hash & Signatures -->
+                            <div class="cert-footer">
+                                <div class="cert-hash">
+                                    <span>Digital Verification Hash:</span>
+                                    <code id="cert-hash-val">SHA256: 4F9B2C1A88E09D3F</code>
+                                </div>
+                                <div class="cert-stamp-box">
+                                    <div class="digital-seal">
+                                        <i class="fa-solid fa-certificate"></i>
+                                        <span>SSS MEDICAL ASSIST<br>SYSTEM VERIFIED</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- TAB 5: PHC DOCTOR & HEALTH WORKER TELE-TRIAGE DESK -->
+            <section id="tab-doctor-desk" class="tab-pane">
+                <div class="doctor-portal-layout">
+                    
+                    <!-- Stats Overview -->
+                    <div class="stats-cards-grid">
+                        <div class="stat-card glass-card">
+                            <div class="stat-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                            <div class="stat-meta">
+                                <span class="stat-num" id="stat-emergency-count">0</span>
+                                <span class="stat-label">Emergency Cases (RED)</span>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-card">
+                            <div class="stat-icon orange"><i class="fa-solid fa-hourglass-half"></i></div>
+                            <div class="stat-meta">
+                                <span class="stat-num" id="stat-urgent-count">0</span>
+                                <span class="stat-label">Urgent Referrals (AMBER)</span>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-card">
+                            <div class="stat-icon green"><i class="fa-solid fa-users"></i></div>
+                            <div class="stat-meta">
+                                <span class="stat-num" id="stat-total-referrals">0</span>
+                                <span class="stat-label">Total Triage Referrals</span>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-card">
+                            <div class="stat-icon blue"><i class="fa-solid fa-bed-pulse"></i></div>
+                            <div class="stat-meta">
+                                <span class="stat-num" id="stat-network-beds">1,824 / 9,420</span>
+                                <span class="stat-label">Network Beds Available</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Patient Referral Stream & Token Verifier -->
+                    <div class="two-column-grid">
+                        
+                        <!-- Left: Live Incoming Triage Stream -->
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-tower-broadcast"></i> Live Incoming Patient Referrals</h3>
+                                <button id="btn-refresh-doctor-feed" class="btn-secondary btn-sm"><i class="fa-solid fa-arrows-rotate"></i> Refresh Feed</button>
+                            </div>
+                            <p class="card-desc">Real-time tele-triage feed from community citizens and rural ASHA/ANM workers.</p>
+
+                            <div class="doctor-referrals-list" id="doctor-referrals-list">
+                                <div class="empty-state-text">No incoming referrals yet. New triage evaluations will appear here in real-time.</div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Token / Hash Validator & Bed Allocator -->
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-qrcode"></i> OPD Token & Referral Verification</h3>
+                            </div>
+                            
+                            <div class="verify-token-form">
+                                <label for="verify-token-input">Enter Slip ID, Token Number, or Verification Hash:</label>
+                                <div class="input-with-btn">
+                                    <input type="text" id="verify-token-input" class="form-control" placeholder="e.g. REF-2026-KA-1001 or EMERG-T742">
+                                    <button id="btn-verify-token" class="btn-primary"><i class="fa-solid fa-check"></i> Verify</button>
+                                </div>
+                            </div>
+
+                            <div class="verification-result-box" id="verification-result-box" style="display: none;">
+                                <!-- Verification card rendered here -->
+                            </div>
+
+                            <div class="tele-consult-card">
+                                <h4><i class="fa-solid fa-video"></i> SSS Teleconsultation Gateway</h4>
+                                <p>Initiate direct encrypted audio-video tele-consultation with Primary Health Centre Medical Officer.</p>
+                                <button class="btn-cta btn-block" onclick="alert('Connecting to SSS Medical Assist Teleconsultation Portal Simulation...');">
+                                    <i class="fa-solid fa-headset"></i> Connect to Medical Officer
+                                </button>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Fullscreen Emergency SOS Overlay Modal -->
+        <div class="sos-modal-overlay" id="sos-modal-overlay">
+            <div class="sos-modal-content">
+                <button class="sos-close-btn" id="sos-close-btn"><i class="fa-solid fa-xmark"></i></button>
+                
+                <div class="sos-strobe-header">
+                    <div class="strobe-siren"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h2>CRITICAL EMERGENCY MODE (RED ALERT)</h2>
+                    <p>Immediate Life-Threatening Medical Response</p>
+                </div>
+
+                <div class="sos-dispatch-box">
+                    <a href="tel:108" class="btn-sos-call">
+                        <i class="fa-solid fa-phone"></i>
+                        <span>DIAL 108 (EMERGENCY AMBULANCE)</span>
+                    </a>
+                    <a href="tel:112" class="btn-sos-call secondary">
+                        <i class="fa-solid fa-shield"></i>
+                        <span>DIAL 112 (ALL-INDIA EMERGENCY)</span>
+                    </a>
+                </div>
+
+                <div class="sos-coords-card">
+                    <i class="fa-solid fa-location-crosshairs"></i>
+                    <div>
+                        <strong>Your Current GPS Coordinates for Dispatcher:</strong>
+                        <span id="sos-gps-text">Latitude: 12.9716° N, Longitude: 77.5946° E (Bengaluru Urban)</span>
+                    </div>
+                </div>
+
+                <!-- Emergency First Aid CPR Interactive Guide -->
+                <div class="first-aid-guide">
+                    <h3><i class="fa-solid fa-heart-pulse"></i> Immediate First Aid (While Ambulance is En Route):</h3>
+                    <div class="guide-steps-grid">
+                        <div class="step-card">
+                            <span class="step-num">1</span>
+                            <strong>Check Responsiveness & Breathing</strong>
+                            <p>Tap shoulders firmly and shout "Are you okay?". Look for chest rise.</p>
+                        </div>
+                        <div class="step-card">
+                            <span class="step-num">2</span>
+                            <strong>Hands-Only CPR (If Unresponsive)</strong>
+                            <p>Place hands on center of chest. Push hard and fast (100-120 beats/min to the beat of 'Stayin Alive').</p>
+                        </div>
+                        <div class="step-card">
+                            <span class="step-num">3</span>
+                            <strong>Suspected Heart Attack</strong>
+                            <p>Keep patient sitting upright. Chew 300mg Aspirin if conscious and not allergic.</p>
+                        </div>
+                        <div class="step-card">
+                            <span class="step-num">4</span>
+                            <strong>Suspected Stroke (FAST)</strong>
+                            <p>Do NOT give food or water. Lay patient on side (recovery position) to protect airway.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Toast Notification Container -->
+        <div class="toast-container" id="toast-container"></div>
+
+        <!-- Global Footer -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <i class="fa-solid fa-heart-pulse text-cyan"></i>
+                    <span><strong>SSS Medical Assist</strong> • National Public Healthcare Accessibility Platform</span>
+                </div>
+                <div class="footer-center">
+                    <span>Clinical Disclaimer: For preliminary triage and healthcare referral guidance. In life-threatening emergencies, dial 108 immediately.</span>
+                </div>
+                <div class="footer-right">
+                    <span>Powered by Java 25 & OpenStreetMap GIS</span>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Leaflet JS for GIS Maps -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Application Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
